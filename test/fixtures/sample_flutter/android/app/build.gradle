@@ -1,0 +1,13 @@
+android {
+    defaultConfig {
+        applicationId "com.example.sample_app"
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            // signingConfig missing intentionally
+            minifyEnabled false
+        }
+    }
+}
