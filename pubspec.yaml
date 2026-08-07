@@ -1,12 +1,12 @@
 name: stackchain_analyzer
-description: >
-  Flutter project health analyzer for the StackChain ecosystem.
-  Detects architecture problems, code quality issues, performance
-  anti-patterns, security risks, dependency issues, and release readiness.
-version: 0.1.0
-homepage: https://github.com/stackchain/stackchain_analyzer
-repository: https://github.com/stackchain/stackchain_analyzer
-issue_tracker: https://github.com/stackchain/stackchain_analyzer/issues
+description: >-
+  Flutter project health analyzer — architecture, performance, security,
+  dependencies, release readiness, and code quality in one CLI.
+version: 0.2.0
+homepage: https://evenlogix.com
+repository: https://github.com/suhailthakrani/stackchain_analyzer
+issue_tracker: https://github.com/suhailthakrani/stackchain_analyzer/issues
+documentation: https://github.com/suhailthakrani/stackchain_analyzer#readme
 topics:
   - flutter
   - analyzer
@@ -15,7 +15,7 @@ topics:
   - dx
 
 environment:
-  sdk: ^3.5.0
+  sdk: '>=3.0.0 <4.0.0'
 
 executables:
   stackchain_analyzer:
@@ -25,11 +25,12 @@ dependencies:
   args: ^2.6.0
   path: ^1.9.0
   yaml: ^3.1.2
-  analyzer: ^7.3.0
+  # Lower bound supports Dart 3.8 (analyzer 8.1.x); upper bound allows latest on newer SDKs.
+  analyzer: '>=8.1.1 <15.0.0'
   http: ^1.2.2
   meta: ^1.15.0
   collection: ^1.19.0
 
 dev_dependencies:
-  lints: ^5.1.1
+  lints: '>=5.0.0 <7.0.0'
   test: ^1.25.8

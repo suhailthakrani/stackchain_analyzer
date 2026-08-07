@@ -18,6 +18,7 @@ class DependencyAnalyzer implements Analyzer {
     FileScanner? scanner,
     http.Client? httpClient,
     this.checkPubDev = true,
+    this.checkAdvisories = true,
   })  : _scanner = scanner ?? const FileScanner(),
         _http = httpClient ?? http.Client();
 
@@ -26,6 +27,9 @@ class DependencyAnalyzer implements Analyzer {
 
   /// When false, skips network calls (useful for tests / offline CI).
   final bool checkPubDev;
+
+  /// When true (and [checkPubDev] is true), queries OSV for Pub advisories.
+  final bool checkAdvisories;
 
   static const _knownDeprecated = <String, String>{
     'pedantic': 'Replaced by package:lints / flutter_lints',
@@ -41,7 +45,7 @@ class DependencyAnalyzer implements Analyzer {
 
   @override
   String get description =>
-      'Detect outdated, unused, deprecated, and duplicate packages';
+      'Detect outdated, unused, deprecated, vulnerable, and duplicate packages';
 
   @override
   Future<AnalysisResult> analyze(ProjectContext context) async {
@@ -61,14 +65,22 @@ class DependencyAnalyzer implements Analyzer {
     issues.addAll(_checkDuplicates(context));
 
     final outdated = <Map<String, String>>[];
+    final advisories = <Map<String, String>>[];
     if (checkPubDev) {
       final results = await _checkOutdated(allDeps);
       issues.addAll(results.issues);
       outdated.addAll(results.outdated);
+
+      if (checkAdvisories) {
+        final vuln = await _checkOsvAdvisories(allDeps);
+        issues.addAll(vuln.issues);
+        advisories.addAll(vuln.advisories);
+      }
     }
 
     metadata['dependencyCount'] = allDeps.length;
     metadata['outdated'] = outdated;
+    metadata['advisories'] = advisories;
 
     final score = AnalysisResult.computeScore(issues);
     return AnalysisResult(
@@ -237,6 +249,62 @@ class DependencyAnalyzer implements Analyzer {
     }
 
     return (issues: issues, outdated: outdated);
+  }
+
+  Future<({List<AnalysisIssue> issues, List<Map<String, String>> advisories})>
+      _checkOsvAdvisories(Map<String, dynamic> deps) async {
+    final issues = <AnalysisIssue>[];
+    final advisories = <Map<String, String>>[];
+
+    for (final entry in deps.entries) {
+      final name = entry.key;
+      final constraint = _constraintToString(entry.value);
+      if (constraint == null) continue;
+      final version = _extractVersion(constraint);
+      if (version == null) continue;
+
+      try {
+        final uri = Uri.parse('https://api.osv.dev/v1/query');
+        final response = await _http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'package': {'name': name, 'ecosystem': 'Pub'},
+                'version': version,
+              }),
+            )
+            .timeout(const Duration(seconds: 8));
+        if (response.statusCode != 200) continue;
+
+        final json = jsonDecode(response.body);
+        if (json is! Map<String, dynamic>) continue;
+        final vulns = json['vulns'];
+        if (vulns is! List || vulns.isEmpty) continue;
+
+        for (final vuln in vulns.take(3)) {
+          if (vuln is! Map<String, dynamic>) continue;
+          final id = '${vuln['id'] ?? 'OSV'}';
+          final summary = '${vuln['summary'] ?? 'Known vulnerability'}';
+          advisories.add({'package': name, 'id': id, 'version': version});
+          issues.add(
+            AnalysisIssue(
+              ruleId: 'deps.advisory',
+              message: 'Security advisory $id for $name@$version: $summary',
+              severity: Severity.critical,
+              filePath: 'pubspec.yaml',
+              suggestion:
+                  'Upgrade $name to a patched version. See https://osv.dev/vulnerability/$id',
+              context: id,
+            ),
+          );
+        }
+      } on Exception {
+        // Network failures are non-fatal.
+      }
+    }
+
+    return (issues: issues, advisories: advisories);
   }
 
   Future<String?> _fetchLatestVersion(String packageName) async {

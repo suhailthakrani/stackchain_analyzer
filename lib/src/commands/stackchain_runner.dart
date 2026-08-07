@@ -15,5 +15,5 @@ class StackChainCommandRunner extends CommandRunner<void> {
     addCommand(AnalyzeCommand());
   }
 
-  static const version = '0.1.0';
+  static const version = '0.2.0';
 }

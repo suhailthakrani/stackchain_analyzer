@@ -11,10 +11,15 @@ import '../analyzer.dart';
 
 /// Pre-release readiness checks for Flutter apps.
 class ReleaseAnalyzer implements Analyzer {
-  ReleaseAnalyzer({FileScanner? scanner})
-      : _scanner = scanner ?? const FileScanner();
+  ReleaseAnalyzer({
+    FileScanner? scanner,
+    this.strict = false,
+  }) : _scanner = scanner ?? const FileScanner();
 
   final FileScanner _scanner;
+
+  /// When true, treat warnings as errors and enforce minify + zero prints.
+  final bool strict;
 
   @override
   String get id => 'release';
@@ -47,14 +52,75 @@ class ReleaseAnalyzer implements Analyzer {
     issues.addAll(flutter.issues);
     checks.addAll(flutter.checks);
 
+    if (strict) {
+      issues.addAll(_applyStrictGate(issues, checks));
+    }
+
     final score = AnalysisResult.computeScore(issues);
     return AnalysisResult(
       analyzerName: name,
       score: score,
       issues: issues,
-      summary: 'Release readiness: $score%',
-      metadata: {'checks': checks},
+      summary: 'Release readiness: $score%${strict ? ' (strict)' : ''}',
+      metadata: {'checks': checks, 'strict': strict},
     );
+  }
+
+  List<AnalysisIssue> _applyStrictGate(
+    List<AnalysisIssue> existing,
+    Map<String, bool> checks,
+  ) {
+    final extras = <AnalysisIssue>[];
+
+    if (checks['android_minify'] == false) {
+      extras.add(
+        const AnalysisIssue(
+          ruleId: 'release.strict_minify',
+          message: 'Strict release requires R8/ProGuard minifyEnabled.',
+          severity: Severity.error,
+          suggestion: 'Enable minifyEnabled for the release buildType.',
+        ),
+      );
+    }
+    if (checks['flutter_print_audit'] == false) {
+      extras.add(
+        const AnalysisIssue(
+          ruleId: 'release.strict_prints',
+          message: 'Strict release forbids print() in lib/.',
+          severity: Severity.error,
+          suggestion: 'Remove print calls or gate them behind kDebugMode.',
+        ),
+      );
+    }
+    if (checks['android_signing'] == false) {
+      extras.add(
+        const AnalysisIssue(
+          ruleId: 'release.strict_signing',
+          message: 'Strict release requires Android signingConfigs.',
+          severity: Severity.critical,
+        ),
+      );
+    }
+
+    // Promote existing warnings to errors under strict mode (dedupe by rule).
+    for (final issue in existing) {
+      if (issue.severity == Severity.warning ||
+          issue.severity == Severity.info) {
+        extras.add(
+          AnalysisIssue(
+            ruleId: '${issue.ruleId}.strict',
+            message: '[strict] ${issue.message}',
+            severity: Severity.error,
+            filePath: issue.filePath,
+            line: issue.line,
+            suggestion: issue.suggestion,
+            context: issue.context,
+          ),
+        );
+      }
+    }
+
+    return extras;
   }
 
   Future<({List<AnalysisIssue> issues, Map<String, bool> checks})>

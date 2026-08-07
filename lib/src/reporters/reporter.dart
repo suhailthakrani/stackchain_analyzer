@@ -4,7 +4,9 @@ import '../models/health_report.dart';
 enum ReportFormat {
   console,
   json,
-  ci;
+  ci,
+  sarif,
+  badge;
 
   static ReportFormat parse(String value) {
     return ReportFormat.values.firstWhere(

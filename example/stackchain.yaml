@@ -1,0 +1,36 @@
+# StackChain Analyzer configuration
+# Place this file at the Flutter project root as `.stackchain.yaml`
+
+analyzers:
+  # Optional allow-list. Empty / omitted = run all registered analyzers.
+  # enabled:
+  #   - architecture
+  #   - performance
+  #   - security
+  #   - dependencies
+  #   - release
+  #   - quality
+  #   - riverpod
+  #   - bloc
+  #   - getx
+  disabled: []
+
+ignore:
+  # - quality.todo
+  # - rule: deps.outdated
+  #   path: "lib/generated/**"
+
+severity_overrides:
+  # perf.missing_const: info
+
+fail:
+  on_warning: false
+  min_score: 60
+  strict_release: false
+
+thresholds:
+  # architecture: 70
+  # security: 80
+
+baseline:
+  path: .stackchain/baseline.json

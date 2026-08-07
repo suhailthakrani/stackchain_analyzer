@@ -5,6 +5,9 @@ import 'performance/performance_analyzer.dart';
 import 'quality/quality_analyzer.dart';
 import 'release/release_analyzer.dart';
 import 'security/security_analyzer.dart';
+import 'state/bloc_analyzer.dart';
+import 'state/getx_analyzer.dart';
+import 'state/riverpod_analyzer.dart';
 
 /// Registry of available analyzer plugins.
 class AnalyzerRegistry {
@@ -46,5 +49,8 @@ class AnalyzerRegistry {
         DependencyAnalyzer(),
         ReleaseAnalyzer(),
         QualityAnalyzer(),
+        RiverpodAnalyzer(),
+        BlocAnalyzer(),
+        GetxAnalyzer(),
       ];
 }

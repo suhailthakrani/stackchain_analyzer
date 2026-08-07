@@ -92,7 +92,7 @@ class WidgetClassFinder extends RecursiveAstVisitor<void> {
   void visitClassDeclaration(ClassDeclaration node) {
     final extendsClause = node.extendsClause;
     if (extendsClause != null) {
-      final name = extendsClause.superclass.name2.lexeme;
+      final name = extendsClause.superclass.name.lexeme;
       const widgetBases = {
         'StatelessWidget',
         'StatefulWidget',

@@ -33,6 +33,23 @@ class AnalysisResult {
 
   bool get hasFailures => criticalCount > 0 || errorCount > 0;
 
+  AnalysisResult copyWith({
+    String? analyzerName,
+    int? score,
+    List<AnalysisIssue>? issues,
+    String? summary,
+    Map<String, dynamic>? metadata,
+  }) {
+    final nextIssues = issues ?? this.issues;
+    return AnalysisResult(
+      analyzerName: analyzerName ?? this.analyzerName,
+      score: score ?? AnalysisResult.computeScore(nextIssues),
+      issues: nextIssues,
+      summary: summary ?? this.summary,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'analyzer': analyzerName,
         'score': score,

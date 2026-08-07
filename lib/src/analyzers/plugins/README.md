@@ -1,7 +1,9 @@
-# Future analyzer plugins
+# Analyzer plugins
 
-Implement [Analyzer](../lib/src/analyzers/analyzer.dart) and register via
-`AnalyzerRegistry`:
+Built-in plugins live under `architecture/`, `performance/`, `security/`,
+`dependencies/`, `release/`, `quality/`, and `state/` (Riverpod / Bloc / GetX).
+
+Implement [Analyzer](../analyzer.dart) and register via `AnalyzerRegistry`:
 
 ```dart
 class FirebaseAnalyzer implements Analyzer {
@@ -14,17 +16,13 @@ class FirebaseAnalyzer implements Analyzer {
 
   @override
   Future<AnalysisResult> analyze(ProjectContext context) async {
-    // ...
     return AnalysisResult(analyzerName: name, score: 100, issues: []);
   }
 }
 ```
 
-Planned domains:
+Still planned:
 
-- `firebase` — rules, insecure rules files, missing App Check
-- `riverpod` — provider misuse, missing `ref.watch` vs `ref.read`
-- `bloc` — event/state patterns, close() leaks
-- `getx` — controller disposal, reactive anti-patterns
+- `firebase` — rules, insecure configs, missing App Check
 - `localization` — missing ARB keys, hardcoded UI strings
-- `accessibility` — Semantics, contrast, tap targets
+- `accessibility` — Semantics, tap targets

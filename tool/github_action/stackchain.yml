@@ -1,0 +1,51 @@
+# Reusable GitHub Action workflow for StackChain Analyzer.
+# Copy to your Flutter app repo as `.github/workflows/stackchain.yml`
+#
+# Features:
+# - Runs offline-friendly CI checks with SARIF upload for Code Scanning
+# - Fails the job when critical/error findings are present
+# - Optional baseline mode for gradual adoption
+
+name: StackChain Analyzer
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Activate StackChain Analyzer
+        run: dart pub global activate stackchain_analyzer
+
+      - name: Analyze project
+        run: |
+          dart pub global run stackchain_analyzer:stackchain analyze \
+            --path . \
+            --format sarif \
+            --fail-on-warning \
+            > stackchain.sarif
+        # Tip: add `--baseline` after `analyze --update-baseline` once on main
+        # to only fail on newly introduced issues.
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: stackchain.sarif
+          category: stackchain

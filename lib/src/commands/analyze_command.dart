@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
+import 'package:path/path.dart' as p;
 
 import '../analyzers/analyzer.dart';
 import '../analyzers/analyzer_registry.dart';
@@ -10,6 +11,10 @@ import '../analyzers/performance/performance_analyzer.dart';
 import '../analyzers/quality/quality_analyzer.dart';
 import '../analyzers/release/release_analyzer.dart';
 import '../analyzers/security/security_analyzer.dart';
+import '../analyzers/state/bloc_analyzer.dart';
+import '../analyzers/state/getx_analyzer.dart';
+import '../analyzers/state/riverpod_analyzer.dart';
+import '../config/stackchain_config.dart';
 import '../reporters/reporter.dart';
 import '../utils/exit_codes.dart';
 import 'analysis_engine.dart';
@@ -19,8 +24,9 @@ import 'analysis_engine.dart';
 /// Examples:
 ///   stackchain analyze
 ///   stackchain analyze architecture
-///   stackchain analyze performance security
-///   stackchain analyze --format json
+///   stackchain analyze release --strict
+///   stackchain analyze --format sarif
+///   stackchain analyze --baseline --update-baseline
 class AnalyzeCommand extends Command<void> {
   AnalyzeCommand({AnalysisEngine? engine}) : _injectedEngine = engine {
     argParser
@@ -31,9 +37,14 @@ class AnalyzeCommand extends Command<void> {
         help: 'Path to the Flutter project root.',
       )
       ..addOption(
+        'config',
+        abbr: 'c',
+        help: 'Path to .stackchain.yaml (defaults to <path>/.stackchain.yaml).',
+      )
+      ..addOption(
         'format',
         abbr: 'f',
-        allowed: ['console', 'json', 'ci'],
+        allowed: ['console', 'json', 'ci', 'sarif', 'badge'],
         defaultsTo: 'console',
         help: 'Output format.',
       )
@@ -54,9 +65,24 @@ class AnalyzeCommand extends Command<void> {
         help: 'Exit with code 1 when warnings are present.',
       )
       ..addFlag(
+        'strict',
+        negatable: false,
+        help: 'Strict release gate (signing, minify, no prints).',
+      )
+      ..addFlag(
         'offline',
         negatable: false,
-        help: 'Skip network checks (e.g. pub.dev outdated lookup).',
+        help: 'Skip network checks (pub.dev + OSV advisories).',
+      )
+      ..addFlag(
+        'baseline',
+        negatable: false,
+        help: 'Only report issues not in the saved baseline.',
+      )
+      ..addFlag(
+        'update-baseline',
+        negatable: false,
+        help: 'Write current issues to the baseline file.',
       )
       ..addFlag(
         'list',
@@ -77,7 +103,7 @@ class AnalyzeCommand extends Command<void> {
 
   @override
   String get invocation =>
-      'stackchain analyze [architecture|performance|security|dependencies|release|quality] [arguments]';
+      'stackchain analyze [analyzer…] [arguments]';
 
   @override
   Future<void> run() async {
@@ -94,28 +120,48 @@ class AnalyzeCommand extends Command<void> {
 
     final analyzerIds = results.rest;
     final path = results['path'] as String;
+    final configPath = results['config'] as String?;
     final format = ReportFormat.parse(results['format'] as String);
     final color = results['color'] as bool;
     final verbose = results['verbose'] as bool;
     final failOnWarning = results['fail-on-warning'] as bool;
     final offline = results['offline'] as bool;
+    final strict = results['strict'] as bool;
+    final useBaseline = results['baseline'] as bool;
+    final updateBaseline = results['update-baseline'] as bool;
+
+    final absolutePath = p.normalize(p.absolute(path));
+    final config = await StackChainConfig.load(
+      projectPath: absolutePath,
+      explicitPath: configPath,
+    );
+
+    final effectiveStrict = strict || config.strictRelease;
 
     final engine = _injectedEngine ??
         AnalysisEngine(
           registry: AnalyzerRegistry(
-            analyzers: _buildAnalyzers(offline: offline),
+            analyzers: _buildAnalyzers(
+              offline: offline,
+              strictRelease: effectiveStrict,
+            ),
           ),
         );
 
     try {
-      if (analyzerIds.isNotEmpty) {
-        // Validate early for clearer errors.
-        engine.registry.resolve(analyzerIds);
+      final resolvedIds = config.resolveAnalyzerIds(analyzerIds);
+      if (resolvedIds.isNotEmpty || analyzerIds.isNotEmpty) {
+        engine.registry.resolve(
+          resolvedIds.isEmpty ? analyzerIds : resolvedIds,
+        );
       }
 
       final report = await engine.run(
         projectPath: path,
         analyzerIds: analyzerIds,
+        config: config,
+        useBaseline: useBaseline,
+        updateBaseline: updateBaseline,
       );
 
       final reporter = engine.createReporter(
@@ -125,9 +171,16 @@ class AnalyzeCommand extends Command<void> {
       );
       reporter.write(report);
 
+      if (updateBaseline) {
+        stdout.writeln(
+          'Baseline updated: ${config.baselinePath}',
+        );
+      }
+
       exitCode = engine.exitCodeFor(
         report,
         failOnWarning: failOnWarning,
+        config: config,
       );
     } on StateError catch (e) {
       stderr.writeln(e.message);
@@ -145,12 +198,22 @@ class AnalyzeCommand extends Command<void> {
     }
   }
 
-  List<Analyzer> _buildAnalyzers({required bool offline}) => [
+  List<Analyzer> _buildAnalyzers({
+    required bool offline,
+    required bool strictRelease,
+  }) =>
+      [
         ArchitectureAnalyzer(),
         PerformanceAnalyzer(),
         SecurityAnalyzer(),
-        DependencyAnalyzer(checkPubDev: !offline),
-        ReleaseAnalyzer(),
+        DependencyAnalyzer(
+          checkPubDev: !offline,
+          checkAdvisories: !offline,
+        ),
+        ReleaseAnalyzer(strict: strictRelease),
         QualityAnalyzer(),
+        RiverpodAnalyzer(),
+        BlocAnalyzer(),
+        GetxAnalyzer(),
       ];
 }

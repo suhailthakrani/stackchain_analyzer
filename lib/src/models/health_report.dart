@@ -17,9 +17,14 @@ class HealthReport {
   final DateTime generatedAt;
 
   int get overallScore {
-    if (results.isEmpty) return 0;
-    final total = results.fold<int>(0, (sum, r) => sum + r.score);
-    return (total / results.length).round();
+    final scored = results.where((r) => r.metadata['skipped'] != true).toList();
+    if (scored.isEmpty) {
+      if (results.isEmpty) return 0;
+      final total = results.fold<int>(0, (sum, r) => sum + r.score);
+      return (total / results.length).round();
+    }
+    final total = scored.fold<int>(0, (sum, r) => sum + r.score);
+    return (total / scored.length).round();
   }
 
   List<AnalysisIssue> get allIssues =>
