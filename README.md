@@ -40,15 +40,22 @@ stackchain analyze --format badge
 
 ## Install
 
+**Recommended** (avoids Flutter dependency conflicts):
+
 ```sh
 dart pub global activate stackchain_analyzer
+stackchain analyze
 ```
 
-Or add as a dev dependency:
+Or add as a **dev_dependency**:
 
 ```yaml
 dev_dependencies:
-  stackchain_analyzer: ^0.2.0
+  stackchain_analyzer: ^0.2.1
+```
+
+```sh
+dart run stackchain_analyzer analyze
 ```
 
 ## Usage

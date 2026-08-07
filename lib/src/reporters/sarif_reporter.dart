@@ -70,7 +70,7 @@ class SarifReporter implements Reporter {
               'name': 'stackchain_analyzer',
               'informationUri':
                   'https://pub.dev/packages/stackchain_analyzer',
-              'version': '0.2.0',
+              'version': '0.2.1',
               'rules': rules.values.toList(),
             },
           },

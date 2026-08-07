@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Widen `analyzer` to `>=6.0.0 <15.0.0` so Flutter apps using `flutter_test` / `bloc_test` can resolve
+- Make NamedType helpers compatible with analyzer 7.x and 8+
+
 ## 0.2.0
 
 - Add `.stackchain.yaml` config (ignore rules, severity overrides, score gates)
@@ -10,9 +15,9 @@
 - Add OSV security advisory checks for Pub packages
 - Add `--strict` release gate profile
 - Ship reusable GitHub Action at `tool/github_action/stackchain.yml`
+- Support Dart SDK `>=3.0.0 <4.0.0` with a broad `analyzer` range
 - Fix pubspec metadata for pub.dev (description length, real repository URLs)
 - Add `example/example.dart` for documentation score
-- Support Dart SDK `>=3.0.0 <4.0.0`, including 3.8.x (`analyzer: '>=8.1.1 <15.0.0'`)
 
 ## 0.1.0
 

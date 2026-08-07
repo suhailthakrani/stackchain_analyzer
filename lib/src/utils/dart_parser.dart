@@ -92,7 +92,7 @@ class WidgetClassFinder extends RecursiveAstVisitor<void> {
   void visitClassDeclaration(ClassDeclaration node) {
     final extendsClause = node.extendsClause;
     if (extendsClause != null) {
-      final name = extendsClause.superclass.name.lexeme;
+      final name = _typeName(extendsClause.superclass);
       const widgetBases = {
         'StatelessWidget',
         'StatefulWidget',
@@ -110,4 +110,17 @@ class WidgetClassFinder extends RecursiveAstVisitor<void> {
     }
     super.visitClassDeclaration(node);
   }
+}
+
+/// Resolves a [NamedType] display name across analyzer 6–14 APIs.
+///
+/// analyzer 7.x exposes `name2`; analyzer 8+ exposes `name`.
+String _typeName(NamedType type) {
+  final source = type.toSource().trim();
+  final withoutArgs = source.split('<').first.trim();
+  final withoutNullable = withoutArgs.endsWith('?')
+      ? withoutArgs.substring(0, withoutArgs.length - 1)
+      : withoutArgs;
+  final parts = withoutNullable.split('.');
+  return parts.isEmpty ? withoutNullable : parts.last;
 }
